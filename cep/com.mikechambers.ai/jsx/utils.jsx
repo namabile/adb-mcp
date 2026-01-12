@@ -179,3 +179,170 @@ $.global.createDocumentInfo = function(doc, activeDoc) {
     
     return docInfo;
 };
+
+// ============================================================
+// Color Conversion Helpers
+// ============================================================
+
+// Convert hex color string or swatch name to Illustrator color object
+$.global.hexToColor = function(hex) {
+    // Handle swatch names first
+    try {
+        var doc = app.activeDocument;
+        var swatch = doc.swatches.getByName(hex);
+        return swatch.color;
+    } catch(e) {
+        // Not a swatch name, continue to parse as hex
+    }
+
+    // Handle "none" for no fill/stroke
+    if (hex === 'none' || hex === null) {
+        return null;
+    }
+
+    // Parse hex color
+    hex = hex.replace('#', '');
+
+    // Handle shorthand hex (#RGB)
+    if (hex.length === 3) {
+        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    }
+
+    var r = parseInt(hex.substring(0, 2), 16);
+    var g = parseInt(hex.substring(2, 4), 16);
+    var b = parseInt(hex.substring(4, 6), 16);
+
+    var color = new RGBColor();
+    color.red = r;
+    color.green = g;
+    color.blue = b;
+    return color;
+};
+
+// Convert Illustrator color object to hex string
+$.global.colorToHex = function(color) {
+    if (!color) return null;
+
+    if (color.typename === 'RGBColor') {
+        var r = Math.round(color.red).toString(16);
+        var g = Math.round(color.green).toString(16);
+        var b = Math.round(color.blue).toString(16);
+
+        if (r.length === 1) r = '0' + r;
+        if (g.length === 1) g = '0' + g;
+        if (b.length === 1) b = '0' + b;
+
+        return '#' + r + g + b;
+    }
+
+    // For CMYK or other color types, return a description
+    return color.typename;
+};
+
+// ============================================================
+// Brand Color Constants (Ultrathink Solutions)
+// ============================================================
+
+$.global.BRAND_COLORS = {
+    'Synaptic Blue': '#0D1B2A',
+    'Void Black': '#0B090A',
+    'Axon White': '#F5F5F5',
+    'Neural Gold': '#FFB703',
+    'Spark Yellow': '#FFD000',
+    'Electric Orange': '#FB8500'
+};
+
+// Create all brand swatches in the active document
+$.global.createBrandSwatches = function() {
+    var doc = app.activeDocument;
+    var created = [];
+
+    for (var name in $.global.BRAND_COLORS) {
+        if ($.global.BRAND_COLORS.hasOwnProperty(name)) {
+            try {
+                // Check if swatch already exists
+                doc.swatches.getByName(name);
+                // Swatch exists, skip
+            } catch(e) {
+                // Create new spot color
+                var spot = doc.spots.add();
+                spot.name = name;
+                spot.color = $.global.hexToColor($.global.BRAND_COLORS[name]);
+                spot.colorType = ColorModel.SPOT;
+                created.push(name);
+            }
+        }
+    }
+
+    return created;
+};
+
+// ============================================================
+// Item Name Management (Illustrator doesn't have UUIDs)
+// ============================================================
+
+// Get item by name from a collection
+$.global.getItemByName = function(name, collection) {
+    for (var i = 0; i < collection.length; i++) {
+        if (collection[i].name === name) {
+            return collection[i];
+        }
+    }
+    return null;
+};
+
+// Generate unique name for items
+$.global.generateUniqueName = function(baseName, collection) {
+    var name = baseName;
+    var counter = 1;
+
+    while ($.global.getItemByName(name, collection)) {
+        name = baseName + '_' + counter;
+        counter++;
+    }
+
+    return name;
+};
+
+// ============================================================
+// Path Item Helpers
+// ============================================================
+
+// Get path item info for JSON serialization
+$.global.getPathItemInfo = function(pathItem) {
+    return {
+        name: pathItem.name,
+        typename: pathItem.typename,
+        left: pathItem.left,
+        top: pathItem.top,
+        width: pathItem.width,
+        height: pathItem.height,
+        filled: pathItem.filled,
+        stroked: pathItem.stroked,
+        strokeWidth: pathItem.strokeWidth,
+        opacity: pathItem.opacity,
+        visible: !pathItem.hidden,
+        locked: pathItem.locked
+    };
+};
+
+// ============================================================
+// Text Frame Helpers
+// ============================================================
+
+// Get text frame info for JSON serialization
+$.global.getTextFrameInfo = function(textFrame) {
+    return {
+        name: textFrame.name,
+        typename: textFrame.typename,
+        kind: textFrame.kind.toString(),
+        contents: textFrame.contents,
+        left: textFrame.left,
+        top: textFrame.top,
+        width: textFrame.width,
+        height: textFrame.height,
+        opacity: textFrame.opacity,
+        visible: !textFrame.hidden,
+        locked: textFrame.locked
+    };
+};

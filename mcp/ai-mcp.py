@@ -180,20 +180,20 @@ def export_png(
 def execute_extend_script(script_string: str):
     """
     Executes arbitrary ExtendScript code in Illustrator and returns the result.
-    
+
     The script should use 'return' to send data back. The result will be automatically
     JSON stringified. If the script throws an error, it will be caught and returned
     as an error object.
-    
+
     Args:
-        script_string (str): The ExtendScript code to execute. Must use 'return' to 
+        script_string (str): The ExtendScript code to execute. Must use 'return' to
                            send results back.
-    
+
     Returns:
         any: The result returned from the ExtendScript, or an error object containing:
             - error (str): Error message
             - line (str): Line number where error occurred
-    
+
     Example:
         script = '''
             var comp = app.project.activeItem;
@@ -206,6 +206,425 @@ def execute_extend_script(script_string: str):
     """
     command = createCommand("executeExtendScript", {
         "scriptString": script_string
+    })
+    return sendCommand(command)
+
+
+# ============================================================
+# Document Management Tools
+# ============================================================
+
+@mcp.tool()
+def create_document(
+    width: float = 612,
+    height: float = 792,
+    name: str = "Untitled",
+    color_mode: str = "RGB",
+    num_artboards: int = 1
+):
+    """
+    Creates a new Illustrator document with specified dimensions.
+
+    Args:
+        width: Document width in points (72 points = 1 inch). Default is 612 (Letter width).
+        height: Document height in points. Default is 792 (Letter height).
+        name: Document name/title.
+        color_mode: Color mode - "RGB" or "CMYK". Default is "RGB".
+        num_artboards: Number of artboards (1-100). Default is 1.
+
+    Returns:
+        dict: Contains 'success', 'name', 'width', 'height', 'colorSpace', 'numArtboards'
+
+    Example:
+        # Create a 1200x800 social media graphic
+        result = create_document(width=1200, height=800, name="Social Graphic")
+    """
+    command = createCommand("createDocument", {
+        "width": width,
+        "height": height,
+        "name": name,
+        "colorMode": color_mode,
+        "numArtboards": num_artboards
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def save_document(file_path: str = None):
+    """
+    Saves the active Illustrator document.
+
+    Args:
+        file_path: Optional file path for "Save As". If not provided, saves in place.
+                   Must be an absolute path ending in .ai
+
+    Returns:
+        dict: Contains 'success', 'name', 'path', 'saved'
+
+    Example:
+        # Save to a new location
+        result = save_document("/Users/me/Documents/artwork.ai")
+
+        # Save in place (document must have been saved before)
+        result = save_document()
+    """
+    command = createCommand("saveDocument", {
+        "filePath": file_path
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def close_document(save: bool = False):
+    """
+    Closes the active Illustrator document.
+
+    Args:
+        save: If True, saves the document before closing. Default is False.
+
+    Returns:
+        dict: Contains 'success', 'documentName', 'saved'
+    """
+    command = createCommand("closeDocument", {
+        "save": save
+    })
+    return sendCommand(command)
+
+
+# ============================================================
+# Color and Swatch Management Tools
+# ============================================================
+
+@mcp.tool()
+def create_color_swatch(
+    name: str,
+    color_value: str
+):
+    """
+    Creates a named color swatch in the active document.
+
+    Args:
+        name: The name for the swatch (e.g., "Brand Blue")
+        color_value: Hex color value (e.g., "#0D1B2A")
+
+    Returns:
+        dict: Contains 'success', 'swatchName', 'colorValue', 'alreadyExisted'
+
+    Example:
+        result = create_color_swatch("Synaptic Blue", "#0D1B2A")
+    """
+    command = createCommand("createColorSwatch", {
+        "name": name,
+        "colorValue": color_value
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def create_brand_swatches():
+    """
+    Creates all Ultrathink Solutions brand color swatches in the active document.
+
+    Creates the following swatches:
+        - Synaptic Blue (#0D1B2A) - Primary dark
+        - Void Black (#0B090A) - Text/accents
+        - Axon White (#F5F5F5) - Backgrounds
+        - Neural Gold (#FFB703) - Accent
+        - Spark Yellow (#FFD000) - Highlight
+        - Electric Orange (#FB8500) - CTA/emphasis
+
+    Returns:
+        dict: Contains 'success', 'createdSwatches' (list of newly created),
+              'brandColors' (all brand color definitions)
+    """
+    command = createCommand("createBrandSwatches", {})
+    return sendCommand(command)
+
+
+@mcp.tool()
+def list_swatches():
+    """
+    Lists all color swatches in the active document.
+
+    Returns:
+        dict: Contains 'success', 'count', 'swatches' (array of swatch info)
+              Each swatch has: name, index, colorType, and color values
+    """
+    command = createCommand("listSwatches", {})
+    return sendCommand(command)
+
+
+# ============================================================
+# Shape Tools
+# ============================================================
+
+@mcp.tool()
+def create_rectangle(
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    fill_color: str = None,
+    stroke_color: str = None,
+    stroke_weight: float = 1,
+    corner_radius: float = 0,
+    layer_name: str = None,
+    name: str = None
+):
+    """
+    Creates a rectangle shape on the active artboard.
+
+    Args:
+        x: X position from left edge in points
+        y: Y position from top edge in points
+        width: Rectangle width in points
+        height: Rectangle height in points
+        fill_color: Fill color as hex "#0D1B2A" or swatch name. None for no fill.
+        stroke_color: Stroke color as hex or swatch name. None for no stroke.
+        stroke_weight: Stroke weight in points. Default is 1.
+        corner_radius: Corner radius for rounded rectangles. Default is 0.
+        layer_name: Target layer name. Creates if doesn't exist. None for active layer.
+        name: Item name for referencing later. Auto-generated if not provided.
+
+    Returns:
+        dict: Contains 'success', 'itemName', 'layer', 'bounds'
+
+    Example:
+        # Create a blue rectangle with rounded corners
+        result = create_rectangle(
+            x=50, y=50, width=200, height=100,
+            fill_color="#0D1B2A", corner_radius=10
+        )
+    """
+    command = createCommand("createRectangle", {
+        "x": x,
+        "y": y,
+        "width": width,
+        "height": height,
+        "fillColor": fill_color,
+        "strokeColor": stroke_color,
+        "strokeWeight": stroke_weight,
+        "cornerRadius": corner_radius,
+        "layerName": layer_name,
+        "name": name
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def create_ellipse(
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    fill_color: str = None,
+    stroke_color: str = None,
+    stroke_weight: float = 1,
+    layer_name: str = None,
+    name: str = None
+):
+    """
+    Creates an ellipse/circle shape on the active artboard.
+
+    Args:
+        x: X position from left edge in points
+        y: Y position from top edge in points
+        width: Ellipse width in points (same as height for circle)
+        height: Ellipse height in points
+        fill_color: Fill color as hex "#FFB703" or swatch name. None for no fill.
+        stroke_color: Stroke color as hex or swatch name. None for no stroke.
+        stroke_weight: Stroke weight in points. Default is 1.
+        layer_name: Target layer name. Creates if doesn't exist.
+        name: Item name for referencing later.
+
+    Returns:
+        dict: Contains 'success', 'itemName', 'layer', 'bounds'
+
+    Example:
+        # Create a gold circle
+        result = create_ellipse(
+            x=100, y=100, width=80, height=80,
+            fill_color="Neural Gold"
+        )
+    """
+    command = createCommand("createEllipse", {
+        "x": x,
+        "y": y,
+        "width": width,
+        "height": height,
+        "fillColor": fill_color,
+        "strokeColor": stroke_color,
+        "strokeWeight": stroke_weight,
+        "layerName": layer_name,
+        "name": name
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def create_line(
+    start_x: float,
+    start_y: float,
+    end_x: float,
+    end_y: float,
+    stroke_color: str = "#000000",
+    stroke_weight: float = 1,
+    stroke_cap: str = "BUTTENDCAP",
+    layer_name: str = None,
+    name: str = None
+):
+    """
+    Creates a line between two points.
+
+    Args:
+        start_x: Starting X position in points
+        start_y: Starting Y position in points
+        end_x: Ending X position in points
+        end_y: Ending Y position in points
+        stroke_color: Stroke color as hex. Default is black.
+        stroke_weight: Stroke weight in points. Default is 1.
+        stroke_cap: Line cap style - "BUTTENDCAP", "ROUNDENDCAP", "PROJECTINGENDCAP"
+        layer_name: Target layer name.
+        name: Item name for referencing later.
+
+    Returns:
+        dict: Contains 'success', 'itemName', 'layer', 'start', 'end'
+    """
+    command = createCommand("createLine", {
+        "startX": start_x,
+        "startY": start_y,
+        "endX": end_x,
+        "endY": end_y,
+        "strokeColor": stroke_color,
+        "strokeWeight": stroke_weight,
+        "strokeCap": stroke_cap,
+        "layerName": layer_name,
+        "name": name
+    })
+    return sendCommand(command)
+
+
+# ============================================================
+# Text Tools
+# ============================================================
+
+@mcp.tool()
+def create_point_text(
+    x: float,
+    y: float,
+    content: str,
+    font_family: str = "Arial",
+    font_style: str = "Regular",
+    font_size: float = 24,
+    text_color: str = "#000000",
+    alignment: str = "LEFT",
+    tracking: float = 0,
+    layer_name: str = None,
+    name: str = None
+):
+    """
+    Creates single-line point text (ideal for headlines and labels).
+
+    Args:
+        x: X position from left edge in points
+        y: Y position from top edge in points
+        content: The text content
+        font_family: Font family name (e.g., "0xProto", "Arial")
+        font_style: Font style (e.g., "Regular", "Bold", "Italic")
+        font_size: Font size in points. Default is 24.
+        text_color: Text color as hex. Default is black.
+        alignment: Text alignment - "LEFT", "CENTER", "RIGHT"
+        tracking: Letter spacing adjustment. Default is 0.
+        layer_name: Target layer name.
+        name: Item name for referencing later.
+
+    Returns:
+        dict: Contains 'success', 'itemName', 'layer', 'bounds', 'content'
+
+    Example:
+        # Create a headline with brand font
+        result = create_point_text(
+            x=50, y=60,
+            content="AI Adoption Metrics",
+            font_family="0xProto",
+            font_size=36,
+            text_color="#0D1B2A"
+        )
+    """
+    command = createCommand("createPointText", {
+        "x": x,
+        "y": y,
+        "content": content,
+        "fontFamily": font_family,
+        "fontStyle": font_style,
+        "fontSize": font_size,
+        "textColor": text_color,
+        "alignment": alignment,
+        "tracking": tracking,
+        "layerName": layer_name,
+        "name": name
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def create_area_text(
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    content: str,
+    font_family: str = "Arial",
+    font_style: str = "Regular",
+    font_size: float = 12,
+    text_color: str = "#000000",
+    alignment: str = "LEFT",
+    layer_name: str = None,
+    name: str = None
+):
+    """
+    Creates multi-line area text within a bounding box (ideal for body text).
+
+    Args:
+        x: X position from left edge in points
+        y: Y position from top edge in points
+        width: Text area width in points
+        height: Text area height in points
+        content: The text content (can include newlines with \\n)
+        font_family: Font family name (e.g., "IBMPlexSerif", "Arial")
+        font_style: Font style (e.g., "Regular", "Bold")
+        font_size: Font size in points. Default is 12.
+        text_color: Text color as hex. Default is black.
+        alignment: Text alignment - "LEFT", "CENTER", "RIGHT", "FULLJUSTIFY"
+        layer_name: Target layer name.
+        name: Item name for referencing later.
+
+    Returns:
+        dict: Contains 'success', 'itemName', 'layer', 'bounds', 'content'
+
+    Example:
+        # Create body text with serif font
+        result = create_area_text(
+            x=50, y=150, width=500, height=400,
+            content="Organizations adopting AI see 40% efficiency gains...",
+            font_family="IBMPlexSerif",
+            font_size=14,
+            text_color="#F5F5F5"
+        )
+    """
+    command = createCommand("createAreaText", {
+        "x": x,
+        "y": y,
+        "width": width,
+        "height": height,
+        "content": content,
+        "fontFamily": font_family,
+        "fontStyle": font_style,
+        "fontSize": font_size,
+        "textColor": text_color,
+        "alignment": alignment,
+        "layerName": layer_name,
+        "name": name
     })
     return sendCommand(command)
 
