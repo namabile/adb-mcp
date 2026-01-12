@@ -704,6 +704,113 @@ const getSelection = async (command) => {
 };
 
 // =============================================================================
+// ADVANCED LAYOUT TOOLS
+// =============================================================================
+
+const createMasterPage = async (command) => {
+    console.log("[MCP] createMasterPage called");
+    const doc = app.activeDocument;
+    const options = command.options || {};
+
+    const masterProps = {
+        name: options.name,
+        namePrefix: options.prefix || "A"
+    };
+
+    // If based on another master, find it first
+    if (options.basedOn) {
+        try {
+            const baseMaster = doc.masterSpreads.itemByName(options.basedOn);
+            masterProps.basedOn = baseMaster;
+        } catch (e) {
+            console.log("[MCP] Base master not found:", options.basedOn);
+        }
+    }
+
+    const master = doc.masterSpreads.add(masterProps);
+
+    return { success: true, masterName: master.name, masterId: master.id };
+};
+
+const linkTextFrames = async (command) => {
+    console.log("[MCP] linkTextFrames called");
+    const doc = app.activeDocument;
+    const options = command.options || {};
+
+    const sourceFrame = doc.textFrames.itemByID(options.sourceFrameId);
+    const targetFrame = doc.textFrames.itemByID(options.targetFrameId);
+
+    // Link the frames - text flows from source to target
+    sourceFrame.nextTextFrame = targetFrame;
+
+    return { success: true };
+};
+
+const setTextWrap = async (command) => {
+    console.log("[MCP] setTextWrap called");
+    const doc = app.activeDocument;
+    const options = command.options || {};
+
+    const TextWrapModes = indesign.TextWrapModes;
+
+    // Find the frame - could be a rectangle, text frame, or other page item
+    let frame;
+    try {
+        frame = doc.rectangles.itemByID(options.frameId);
+        // Test if it exists
+        const id = frame.id;
+    } catch (e) {
+        try {
+            frame = doc.textFrames.itemByID(options.frameId);
+        } catch (e2) {
+            throw new Error(`Frame not found with ID: ${options.frameId}`);
+        }
+    }
+
+    // Map wrap mode string to InDesign constant
+    const wrapModeMap = {
+        "NONE": TextWrapModes.NONE,
+        "BOUNDING_BOX": TextWrapModes.BOUNDING_BOX_TEXT_WRAP,
+        "CONTOUR": TextWrapModes.CONTOUR,
+        "JUMP_OBJECT": TextWrapModes.JUMP_OBJECT_TEXT_WRAP
+    };
+
+    const wrapMode = wrapModeMap[options.wrapMode] || TextWrapModes.BOUNDING_BOX_TEXT_WRAP;
+    frame.textWrapPreferences.textWrapMode = wrapMode;
+
+    // Set offsets [top, left, bottom, right]
+    frame.textWrapPreferences.textWrapOffset = [
+        options.offsetTop || 12,
+        options.offsetLeft || 12,
+        options.offsetBottom || 12,
+        options.offsetRight || 12
+    ];
+
+    return { success: true };
+};
+
+const saveDocument = async (command) => {
+    console.log("[MCP] saveDocument called");
+    const doc = app.activeDocument;
+    const options = command.options || {};
+
+    let savedPath;
+
+    if (options.filePath) {
+        // Save to specified path
+        const saveFile = new File(options.filePath);
+        doc.save(saveFile);
+        savedPath = options.filePath;
+    } else {
+        // Save to existing location (for previously saved docs)
+        doc.save();
+        savedPath = doc.fullName ? doc.fullName.fsName : doc.name;
+    }
+
+    return { success: true, filePath: savedPath };
+};
+
+// =============================================================================
 // COMMAND ROUTING
 // =============================================================================
 
@@ -748,7 +855,13 @@ const commandHandlers = {
     // Inspection
     listTextFrames,
     listImages,
-    getSelection
+    getSelection,
+
+    // Advanced layout
+    createMasterPage,
+    linkTextFrames,
+    setTextWrap,
+    saveDocument
 };
 
 console.log("[MCP] Registered handlers:", Object.keys(commandHandlers).join(", "));

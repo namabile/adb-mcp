@@ -677,6 +677,123 @@ def get_selection():
     command = createCommand("getSelection", {})
     return sendCommand(command)
 
+
+# =============================================================================
+# ADVANCED LAYOUT TOOLS
+# =============================================================================
+
+@mcp.tool()
+def create_master_page(
+    name: str,
+    prefix: str = "A",
+    based_on: str = None
+):
+    """
+    Creates a new master page (master spread) for consistent layouts.
+
+    Master pages contain elements that appear on all pages using that master,
+    such as headers, footers, page numbers, and background elements.
+
+    Args:
+        name: Name for the master page (e.g., "Chapter Opener")
+        prefix: Single letter prefix shown in Pages panel (default: "A")
+        based_on: Name of existing master to base this on (optional)
+
+    Returns:
+        dict: Contains 'masterName' of the created master spread
+    """
+    command = createCommand("createMasterPage", {
+        "name": name,
+        "prefix": prefix,
+        "basedOn": based_on
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def link_text_frames(
+    source_frame_id: int,
+    target_frame_id: int
+):
+    """
+    Links two text frames so text flows from source to target.
+
+    When text overflows the source frame, it continues in the target frame.
+    This is essential for multi-page documents like whitepapers.
+
+    Args:
+        source_frame_id: ID of the frame where text starts
+        target_frame_id: ID of the frame where overflow text continues
+
+    Returns:
+        dict: Contains success status
+    """
+    command = createCommand("linkTextFrames", {
+        "sourceFrameId": source_frame_id,
+        "targetFrameId": target_frame_id
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def set_text_wrap(
+    frame_id: int,
+    wrap_mode: str = "BOUNDING_BOX",
+    offset_top: float = 12,
+    offset_left: float = 12,
+    offset_bottom: float = 12,
+    offset_right: float = 12
+):
+    """
+    Sets text wrap preferences for an object so text flows around it.
+
+    Essential for placing images in text-heavy layouts.
+
+    Args:
+        frame_id: ID of the frame (rectangle, image frame) to wrap text around
+        wrap_mode: Type of wrap - "NONE", "BOUNDING_BOX", "CONTOUR", "JUMP_OBJECT"
+        offset_top: Space above object in points (default: 12)
+        offset_left: Space left of object in points (default: 12)
+        offset_bottom: Space below object in points (default: 12)
+        offset_right: Space right of object in points (default: 12)
+
+    Returns:
+        dict: Contains success status
+    """
+    command = createCommand("setTextWrap", {
+        "frameId": frame_id,
+        "wrapMode": wrap_mode,
+        "offsetTop": offset_top,
+        "offsetLeft": offset_left,
+        "offsetBottom": offset_bottom,
+        "offsetRight": offset_right
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def save_document(
+    file_path: str = None
+):
+    """
+    Saves the active InDesign document.
+
+    If no path is provided and the document has been saved before,
+    it saves to the existing location. For new documents, a path is required.
+
+    Args:
+        file_path: Full path where to save the document (e.g., "/Users/name/Documents/whitepaper.indd")
+                   If None, saves to existing location for previously saved documents.
+
+    Returns:
+        dict: Contains 'filePath' of the saved document
+    """
+    command = createCommand("saveDocument", {
+        "filePath": file_path
+    })
+    return sendCommand(command)
+
+
 @mcp.resource("config://get_instructions")
 def get_instructions() -> str:
     """Read this first! Returns information and instructions on how to use Photoshop and this API"""

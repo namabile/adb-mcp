@@ -249,6 +249,78 @@ class TestLiveTables:
         return frame_id
 
 
+@pytest.mark.live
+class TestLiveAdvancedLayout:
+    """Live tests for advanced layout tools."""
+
+    def test_create_master_page(self):
+        """Test creating a master page."""
+        command = createCommand("createMasterPage", {
+            "name": "Whitepaper Header",
+            "prefix": "B",
+            "basedOn": None
+        })
+        result = sendCommand(command)
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        print(f"✓ Created master page: {result.get('response', {}).get('masterName')}")
+
+    def test_link_text_frames(self):
+        """Test linking two text frames for text flow."""
+        # Create first frame
+        cmd1 = createCommand("createTextFrame", {
+            "x": 36, "y": 500, "width": 250, "height": 200,
+            "content": "This is a long text that should overflow into the next frame. " * 10,
+            "pageIndex": 0
+        })
+        result1 = sendCommand(cmd1)
+        assert result1["status"] == "SUCCESS", f"Failed to create frame 1: {result1}"
+        frame1_id = result1.get("response", {}).get("frameId")
+
+        # Create second frame
+        cmd2 = createCommand("createTextFrame", {
+            "x": 320, "y": 500, "width": 250, "height": 200,
+            "content": "",
+            "pageIndex": 0
+        })
+        result2 = sendCommand(cmd2)
+        assert result2["status"] == "SUCCESS", f"Failed to create frame 2: {result2}"
+        frame2_id = result2.get("response", {}).get("frameId")
+
+        # Link the frames
+        link_cmd = createCommand("linkTextFrames", {
+            "sourceFrameId": frame1_id,
+            "targetFrameId": frame2_id
+        })
+        result = sendCommand(link_cmd)
+        assert result["status"] == "SUCCESS", f"Failed to link frames: {result}"
+        print(f"✓ Linked text frames: {frame1_id} -> {frame2_id}")
+
+    def test_set_text_wrap(self):
+        """Test setting text wrap on a rectangle."""
+        # Create a rectangle
+        cmd = createCommand("createRectangle", {
+            "x": 200, "y": 200, "width": 150, "height": 100,
+            "fillColor": "#FFB703",
+            "pageIndex": 0
+        })
+        result = sendCommand(cmd)
+        assert result["status"] == "SUCCESS", f"Failed to create rectangle: {result}"
+        frame_id = result.get("response", {}).get("frameId")
+
+        # Set text wrap
+        wrap_cmd = createCommand("setTextWrap", {
+            "frameId": frame_id,
+            "wrapMode": "BOUNDING_BOX",
+            "offsetTop": 24,
+            "offsetLeft": 24,
+            "offsetBottom": 24,
+            "offsetRight": 24
+        })
+        result = sendCommand(wrap_cmd)
+        assert result["status"] == "SUCCESS", f"Failed to set text wrap: {result}"
+        print(f"✓ Set text wrap on frame: {frame_id}")
+
+
 def run_all_live_tests():
     """Run all live tests in sequence."""
     print("\n" + "=" * 60)
@@ -265,6 +337,7 @@ def run_all_live_tests():
         ("Text Frames", TestLiveTextFrames()),
         ("Page Management", TestLivePageManagement()),
         ("Tables", TestLiveTables()),
+        ("Advanced Layout", TestLiveAdvancedLayout()),
     ]
 
     passed = 0
