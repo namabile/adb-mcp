@@ -1136,6 +1136,572 @@ const createAreaText = async (command) => {
 };
 
 // ============================================================
+// Layer Management
+// ============================================================
+
+const createLayer = async (command) => {
+    const options = command.options || {};
+    const name = options.name || "New Layer";
+    const aboveLayer = options.aboveLayer;
+    const visible = options.visible !== undefined ? options.visible : true;
+    const locked = options.locked !== undefined ? options.locked : false;
+
+    const script = `
+        (function() {
+            try {
+                var result = (function() {
+                    if (app.documents.length === 0) {
+                        return { error: "No document is currently open" };
+                    }
+
+                    var doc = app.activeDocument;
+                    var newLayer = doc.layers.add();
+                    newLayer.name = "${name.replace(/"/g, '\\"')}";
+                    newLayer.visible = ${visible};
+                    newLayer.locked = ${locked};
+
+                    ${aboveLayer ? `
+                    // Move layer above specified layer
+                    try {
+                        var targetLayer = doc.layers.getByName("${aboveLayer.replace(/"/g, '\\"')}");
+                        newLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
+                        // Position relative to target
+                        while (newLayer.zOrderPosition > targetLayer.zOrderPosition) {
+                            newLayer.zOrder(ZOrderMethod.SENDBACKWARD);
+                        }
+                        newLayer.zOrder(ZOrderMethod.BRINGFORWARD);
+                    } catch(e) {
+                        // Target layer not found, keep at top
+                    }
+                    ` : ''}
+
+                    return {
+                        success: true,
+                        layerName: newLayer.name,
+                        visible: newLayer.visible,
+                        locked: newLayer.locked,
+                        zOrderPosition: newLayer.zOrderPosition,
+                        totalLayers: doc.layers.length
+                    };
+                })();
+
+                return JSON.stringify(result);
+            } catch(e) {
+                return JSON.stringify({
+                    error: e.toString(),
+                    line: e.line || 'unknown'
+                });
+            }
+        })();
+    `;
+
+    let result = await executeCommand(script);
+    return createPacket(result);
+};
+
+const deleteLayer = async (command) => {
+    const options = command.options || {};
+    const name = options.name;
+
+    if (!name) {
+        return createPacket({ error: "Layer 'name' is required" });
+    }
+
+    const script = `
+        (function() {
+            try {
+                var result = (function() {
+                    if (app.documents.length === 0) {
+                        return { error: "No document is currently open" };
+                    }
+
+                    var doc = app.activeDocument;
+
+                    // Can't delete the last layer
+                    if (doc.layers.length <= 1) {
+                        return { error: "Cannot delete the last remaining layer" };
+                    }
+
+                    try {
+                        var layer = doc.layers.getByName("${name.replace(/"/g, '\\"')}");
+                        var layerName = layer.name;
+                        layer.remove();
+
+                        return {
+                            success: true,
+                            deletedLayer: layerName,
+                            remainingLayers: doc.layers.length
+                        };
+                    } catch(e) {
+                        return { error: "Layer not found: ${name.replace(/"/g, '\\"')}" };
+                    }
+                })();
+
+                return JSON.stringify(result);
+            } catch(e) {
+                return JSON.stringify({
+                    error: e.toString(),
+                    line: e.line || 'unknown'
+                });
+            }
+        })();
+    `;
+
+    let result = await executeCommand(script);
+    return createPacket(result);
+};
+
+const renameLayer = async (command) => {
+    const options = command.options || {};
+    const currentName = options.currentName;
+    const newName = options.newName;
+
+    if (!currentName || !newName) {
+        return createPacket({ error: "Both 'currentName' and 'newName' are required" });
+    }
+
+    const script = `
+        (function() {
+            try {
+                var result = (function() {
+                    if (app.documents.length === 0) {
+                        return { error: "No document is currently open" };
+                    }
+
+                    var doc = app.activeDocument;
+
+                    try {
+                        var layer = doc.layers.getByName("${currentName.replace(/"/g, '\\"')}");
+                        var oldName = layer.name;
+                        layer.name = "${newName.replace(/"/g, '\\"')}";
+
+                        return {
+                            success: true,
+                            oldName: oldName,
+                            newName: layer.name
+                        };
+                    } catch(e) {
+                        return { error: "Layer not found: ${currentName.replace(/"/g, '\\"')}" };
+                    }
+                })();
+
+                return JSON.stringify(result);
+            } catch(e) {
+                return JSON.stringify({
+                    error: e.toString(),
+                    line: e.line || 'unknown'
+                });
+            }
+        })();
+    `;
+
+    let result = await executeCommand(script);
+    return createPacket(result);
+};
+
+const setLayerVisibility = async (command) => {
+    const options = command.options || {};
+    const name = options.name;
+    const visible = options.visible;
+
+    if (!name || visible === undefined) {
+        return createPacket({ error: "Both 'name' and 'visible' are required" });
+    }
+
+    const script = `
+        (function() {
+            try {
+                var result = (function() {
+                    if (app.documents.length === 0) {
+                        return { error: "No document is currently open" };
+                    }
+
+                    var doc = app.activeDocument;
+
+                    try {
+                        var layer = doc.layers.getByName("${name.replace(/"/g, '\\"')}");
+                        layer.visible = ${visible};
+
+                        return {
+                            success: true,
+                            layerName: layer.name,
+                            visible: layer.visible
+                        };
+                    } catch(e) {
+                        return { error: "Layer not found: ${name.replace(/"/g, '\\"')}" };
+                    }
+                })();
+
+                return JSON.stringify(result);
+            } catch(e) {
+                return JSON.stringify({
+                    error: e.toString(),
+                    line: e.line || 'unknown'
+                });
+            }
+        })();
+    `;
+
+    let result = await executeCommand(script);
+    return createPacket(result);
+};
+
+const setLayerLock = async (command) => {
+    const options = command.options || {};
+    const name = options.name;
+    const locked = options.locked;
+
+    if (!name || locked === undefined) {
+        return createPacket({ error: "Both 'name' and 'locked' are required" });
+    }
+
+    const script = `
+        (function() {
+            try {
+                var result = (function() {
+                    if (app.documents.length === 0) {
+                        return { error: "No document is currently open" };
+                    }
+
+                    var doc = app.activeDocument;
+
+                    try {
+                        var layer = doc.layers.getByName("${name.replace(/"/g, '\\"')}");
+                        layer.locked = ${locked};
+
+                        return {
+                            success: true,
+                            layerName: layer.name,
+                            locked: layer.locked
+                        };
+                    } catch(e) {
+                        return { error: "Layer not found: ${name.replace(/"/g, '\\"')}" };
+                    }
+                })();
+
+                return JSON.stringify(result);
+            } catch(e) {
+                return JSON.stringify({
+                    error: e.toString(),
+                    line: e.line || 'unknown'
+                });
+            }
+        })();
+    `;
+
+    let result = await executeCommand(script);
+    return createPacket(result);
+};
+
+const reorderLayer = async (command) => {
+    const options = command.options || {};
+    const name = options.name;
+    const position = options.position; // "front", "back", "forward", "backward", or index number
+
+    if (!name || position === undefined) {
+        return createPacket({ error: "Both 'name' and 'position' are required" });
+    }
+
+    const script = `
+        (function() {
+            try {
+                var result = (function() {
+                    if (app.documents.length === 0) {
+                        return { error: "No document is currently open" };
+                    }
+
+                    var doc = app.activeDocument;
+
+                    try {
+                        var layer = doc.layers.getByName("${name.replace(/"/g, '\\"')}");
+                        var position = "${position}";
+
+                        if (position === "front") {
+                            layer.zOrder(ZOrderMethod.BRINGTOFRONT);
+                        } else if (position === "back") {
+                            layer.zOrder(ZOrderMethod.SENDTOBACK);
+                        } else if (position === "forward") {
+                            layer.zOrder(ZOrderMethod.BRINGFORWARD);
+                        } else if (position === "backward") {
+                            layer.zOrder(ZOrderMethod.SENDBACKWARD);
+                        } else {
+                            // Numeric index - move to specific position
+                            var targetIndex = parseInt(position);
+                            if (!isNaN(targetIndex) && targetIndex >= 0 && targetIndex < doc.layers.length) {
+                                // Move to front first, then move back to target position
+                                layer.zOrder(ZOrderMethod.BRINGTOFRONT);
+                                for (var i = 0; i < targetIndex; i++) {
+                                    layer.zOrder(ZOrderMethod.SENDBACKWARD);
+                                }
+                            }
+                        }
+
+                        return {
+                            success: true,
+                            layerName: layer.name,
+                            newZOrderPosition: layer.zOrderPosition,
+                            totalLayers: doc.layers.length
+                        };
+                    } catch(e) {
+                        return { error: "Layer not found: ${name.replace(/"/g, '\\"')}" };
+                    }
+                })();
+
+                return JSON.stringify(result);
+            } catch(e) {
+                return JSON.stringify({
+                    error: e.toString(),
+                    line: e.line || 'unknown'
+                });
+            }
+        })();
+    `;
+
+    let result = await executeCommand(script);
+    return createPacket(result);
+};
+
+const getLayers = async (command) => {
+    const script = `
+        (function() {
+            try {
+                var result = (function() {
+                    if (app.documents.length === 0) {
+                        return { error: "No document is currently open" };
+                    }
+
+                    var doc = app.activeDocument;
+                    return $.global.getAllLayersInfo(doc);
+                })();
+
+                return JSON.stringify(result);
+            } catch(e) {
+                return JSON.stringify({
+                    error: e.toString(),
+                    line: e.line || 'unknown'
+                });
+            }
+        })();
+    `;
+
+    let result = await executeCommand(script);
+    return createPacket(result);
+};
+
+// ============================================================
+// Export Tools
+// ============================================================
+
+const exportSVG = async (command) => {
+    const options = command.options || {};
+    const outputPath = options.outputPath;
+    const artboardIndex = options.artboardIndex !== undefined ? options.artboardIndex : 0;
+    const embedFonts = options.embedFonts !== undefined ? options.embedFonts : true;
+    const embedRasterImages = options.embedRasterImages !== undefined ? options.embedRasterImages : true;
+    const cssProperties = options.cssProperties || "STYLEATTRIBUTES"; // STYLEATTRIBUTES, PRESENTATIONATTRIBUTES, STYLEELEMENTS
+    const fontSubsetting = options.fontSubsetting || "GLYPHSUSED"; // NONE, GLYPHSUSED, COMMONENGLISH, GLYPHSUSEDPLUSENGLISH, COMMONROMAN, GLYPHSUSEDPLUSROMAN, ALLGLYPHS
+
+    if (!outputPath) {
+        return createPacket({ error: "outputPath is required" });
+    }
+
+    const script = `
+        (function() {
+            try {
+                var result = (function() {
+                    if (app.documents.length === 0) {
+                        return { error: "No document is currently open" };
+                    }
+
+                    var doc = app.activeDocument;
+                    var exportFile = new File("${outputPath.replace(/\\/g, '/')}");
+
+                    // Set up SVG export options
+                    var svgOptions = new ExportOptionsSVG();
+                    svgOptions.embedRasterImages = ${embedRasterImages};
+                    svgOptions.cssProperties = SVGCSSPropertyLocation.${cssProperties};
+                    svgOptions.fontSubsetting = SVGFontSubsetting.${fontSubsetting};
+                    svgOptions.documentEncoding = SVGDocumentEncoding.UTF8;
+                    svgOptions.coordinatePrecision = 3;
+
+                    ${embedFonts ? `
+                    svgOptions.fontType = SVGFontType.OUTLINEFONT;
+                    ` : `
+                    svgOptions.fontType = SVGFontType.SVGFONT;
+                    `}
+
+                    // Set artboard to export
+                    ${artboardIndex >= 0 ? `
+                    if (${artboardIndex} < doc.artboards.length) {
+                        doc.artboards.setActiveArtboardIndex(${artboardIndex});
+                        svgOptions.artboardRange = "${artboardIndex + 1}";
+                    }
+                    ` : ''}
+
+                    // Export
+                    doc.exportFile(exportFile, ExportType.SVG, svgOptions);
+
+                    return {
+                        success: true,
+                        filePath: exportFile.fsName,
+                        fileExists: exportFile.exists,
+                        documentName: doc.name,
+                        artboardIndex: ${artboardIndex}
+                    };
+                })();
+
+                return JSON.stringify(result);
+            } catch(e) {
+                return JSON.stringify({
+                    error: e.toString(),
+                    line: e.line || 'unknown'
+                });
+            }
+        })();
+    `;
+
+    let result = await executeCommand(script);
+    return createPacket(result);
+};
+
+const exportPDF = async (command) => {
+    const options = command.options || {};
+    const outputPath = options.outputPath;
+    const preset = options.preset || "[High Quality Print]";
+    const preserveEditability = options.preserveEditability !== undefined ? options.preserveEditability : true;
+    const optimizeForFastWebView = options.optimizeForFastWebView !== undefined ? options.optimizeForFastWebView : false;
+    const viewAfterSaving = options.viewAfterSaving !== undefined ? options.viewAfterSaving : false;
+    const artboardRange = options.artboardRange; // e.g., "1-3" or "1,3,5"
+
+    if (!outputPath) {
+        return createPacket({ error: "outputPath is required" });
+    }
+
+    const script = `
+        (function() {
+            try {
+                var result = (function() {
+                    if (app.documents.length === 0) {
+                        return { error: "No document is currently open" };
+                    }
+
+                    var doc = app.activeDocument;
+                    var saveFile = new File("${outputPath.replace(/\\/g, '/')}");
+
+                    // Set up PDF save options
+                    var pdfOptions = new PDFSaveOptions();
+
+                    // Try to use preset
+                    try {
+                        pdfOptions.pDFPreset = "${preset.replace(/"/g, '\\"')}";
+                    } catch(e) {
+                        // Preset not found, use defaults
+                    }
+
+                    pdfOptions.preserveEditability = ${preserveEditability};
+                    pdfOptions.optimization = ${optimizeForFastWebView};
+                    pdfOptions.viewAfterSaving = ${viewAfterSaving};
+
+                    ${artboardRange ? `
+                    pdfOptions.artboardRange = "${artboardRange}";
+                    ` : ''}
+
+                    // Save as PDF
+                    doc.saveAs(saveFile, pdfOptions);
+
+                    return {
+                        success: true,
+                        filePath: saveFile.fsName,
+                        fileExists: saveFile.exists,
+                        documentName: doc.name,
+                        preset: "${preset.replace(/"/g, '\\"')}"
+                    };
+                })();
+
+                return JSON.stringify(result);
+            } catch(e) {
+                return JSON.stringify({
+                    error: e.toString(),
+                    line: e.line || 'unknown'
+                });
+            }
+        })();
+    `;
+
+    let result = await executeCommand(script);
+    return createPacket(result);
+};
+
+const exportJPEG = async (command) => {
+    const options = command.options || {};
+    const outputPath = options.outputPath;
+    const artboardIndex = options.artboardIndex !== undefined ? options.artboardIndex : 0;
+    const quality = options.quality !== undefined ? options.quality : 80; // 0-100
+    const horizontalScale = options.horizontalScale || 100;
+    const verticalScale = options.verticalScale || 100;
+    const antiAliasing = options.antiAliasing !== undefined ? options.antiAliasing : true;
+    const artBoardClipping = options.artBoardClipping !== undefined ? options.artBoardClipping : true;
+    const blurAmount = options.blurAmount || 0; // 0-2
+
+    if (!outputPath) {
+        return createPacket({ error: "outputPath is required" });
+    }
+
+    const script = `
+        (function() {
+            try {
+                var result = (function() {
+                    if (app.documents.length === 0) {
+                        return { error: "No document is currently open" };
+                    }
+
+                    var doc = app.activeDocument;
+                    var exportFile = new File("${outputPath.replace(/\\/g, '/')}");
+
+                    // Set up JPEG export options
+                    var jpgOptions = new ExportOptionsJPEG();
+                    jpgOptions.qualitySetting = ${quality};
+                    jpgOptions.horizontalScale = ${horizontalScale};
+                    jpgOptions.verticalScale = ${verticalScale};
+                    jpgOptions.antiAliasing = ${antiAliasing};
+                    jpgOptions.artBoardClipping = ${artBoardClipping};
+                    jpgOptions.blurAmount = ${blurAmount};
+
+                    // Set artboard to export
+                    ${artboardIndex >= 0 ? `
+                    if (${artboardIndex} < doc.artboards.length) {
+                        doc.artboards.setActiveArtboardIndex(${artboardIndex});
+                    }
+                    ` : ''}
+
+                    // Export
+                    doc.exportFile(exportFile, ExportType.JPEG, jpgOptions);
+
+                    return {
+                        success: true,
+                        filePath: exportFile.fsName,
+                        fileExists: exportFile.exists,
+                        documentName: doc.name,
+                        quality: ${quality},
+                        artboardIndex: ${artboardIndex}
+                    };
+                })();
+
+                return JSON.stringify(result);
+            } catch(e) {
+                return JSON.stringify({
+                    error: e.toString(),
+                    line: e.line || 'unknown'
+                });
+            }
+        })();
+    `;
+
+    let result = await executeCommand(script);
+    return createPacket(result);
+};
+
+// ============================================================
 // Command Handlers Registry
 // ============================================================
 
@@ -1160,5 +1726,17 @@ const commandHandlers = {
     createLine,
     // Text tools
     createPointText,
-    createAreaText
+    createAreaText,
+    // Layer management
+    createLayer,
+    deleteLayer,
+    renameLayer,
+    setLayerVisibility,
+    setLayerLock,
+    reorderLayer,
+    getLayers,
+    // Export tools
+    exportSVG,
+    exportPDF,
+    exportJPEG
 };

@@ -32,7 +32,7 @@ print(f"{mcp_name} running on stdio", file=sys.stderr)
 
 APPLICATION = "illustrator"
 PROXY_URL = 'http://localhost:3001'
-PROXY_TIMEOUT = 20
+PROXY_TIMEOUT = 60  # Export operations can take longer
 
 socket_client.configure(
     app=APPLICATION, 
@@ -627,6 +627,323 @@ def create_area_text(
         "name": name
     })
     return sendCommand(command)
+
+# ============================================================
+# Layer Management Tools
+# ============================================================
+
+@mcp.tool()
+def create_layer(
+    name: str = "New Layer",
+    above_layer: str = None,
+    visible: bool = True,
+    locked: bool = False
+):
+    """
+    Creates a new layer in the active document.
+
+    Args:
+        name: Name for the new layer. Default is "New Layer".
+        above_layer: Name of layer to position above. None places at top.
+        visible: Whether layer is visible. Default is True.
+        locked: Whether layer is locked. Default is False.
+
+    Returns:
+        dict: Contains 'success', 'layerName', 'visible', 'locked',
+              'zOrderPosition', 'totalLayers'
+
+    Example:
+        # Create a new layer for icons
+        result = create_layer(name="Icons", visible=True)
+
+        # Create hidden layer for guides
+        result = create_layer(name="Guides", visible=False, locked=True)
+    """
+    command = createCommand("createLayer", {
+        "name": name,
+        "aboveLayer": above_layer,
+        "visible": visible,
+        "locked": locked
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def delete_layer(name: str):
+    """
+    Deletes a layer from the active document.
+
+    Args:
+        name: Name of the layer to delete.
+
+    Returns:
+        dict: Contains 'success', 'deletedLayer', 'remainingLayers'
+
+    Note:
+        Cannot delete the last remaining layer in a document.
+    """
+    command = createCommand("deleteLayer", {
+        "name": name
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def rename_layer(current_name: str, new_name: str):
+    """
+    Renames an existing layer.
+
+    Args:
+        current_name: Current name of the layer.
+        new_name: New name for the layer.
+
+    Returns:
+        dict: Contains 'success', 'oldName', 'newName'
+    """
+    command = createCommand("renameLayer", {
+        "currentName": current_name,
+        "newName": new_name
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def set_layer_visibility(name: str, visible: bool):
+    """
+    Shows or hides a layer.
+
+    Args:
+        name: Name of the layer.
+        visible: True to show, False to hide.
+
+    Returns:
+        dict: Contains 'success', 'layerName', 'visible'
+
+    Example:
+        # Hide the background layer
+        result = set_layer_visibility("Background", False)
+    """
+    command = createCommand("setLayerVisibility", {
+        "name": name,
+        "visible": visible
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def set_layer_lock(name: str, locked: bool):
+    """
+    Locks or unlocks a layer.
+
+    Args:
+        name: Name of the layer.
+        locked: True to lock, False to unlock.
+
+    Returns:
+        dict: Contains 'success', 'layerName', 'locked'
+
+    Example:
+        # Lock the background to prevent accidental edits
+        result = set_layer_lock("Background", True)
+    """
+    command = createCommand("setLayerLock", {
+        "name": name,
+        "locked": locked
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def reorder_layer(name: str, position: str):
+    """
+    Changes a layer's position in the layer stack.
+
+    Args:
+        name: Name of the layer to move.
+        position: New position - "front", "back", "forward", "backward",
+                  or a numeric index (0 = top).
+
+    Returns:
+        dict: Contains 'success', 'layerName', 'newZOrderPosition', 'totalLayers'
+
+    Example:
+        # Move layer to front (top)
+        result = reorder_layer("Header", "front")
+
+        # Move layer back one position
+        result = reorder_layer("Content", "backward")
+
+        # Move to specific index
+        result = reorder_layer("Footer", "2")
+    """
+    command = createCommand("reorderLayer", {
+        "name": name,
+        "position": str(position)
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def get_layers():
+    """
+    Gets detailed information about all layers in the active document.
+
+    Returns:
+        dict: Contains 'totalLayers' and 'layers' array with each layer's:
+              - name, visible, locked, opacity, zOrderPosition
+              - itemCounts (pathItems, textFrames, etc.)
+              - subLayers (if any)
+    """
+    command = createCommand("getLayers", {})
+    return sendCommand(command)
+
+
+# ============================================================
+# Export Tools
+# ============================================================
+
+@mcp.tool()
+def export_svg(
+    output_path: str,
+    artboard_index: int = 0,
+    embed_fonts: bool = True,
+    embed_raster_images: bool = True,
+    css_properties: str = "STYLEATTRIBUTES",
+    font_subsetting: str = "GLYPHSUSED"
+):
+    """
+    Exports the active document as SVG.
+
+    Args:
+        output_path: Absolute path for the SVG file (e.g., "/path/to/export.svg")
+        artboard_index: Index of artboard to export (0-based). Default is 0.
+        embed_fonts: Embed fonts as outlines. Default is True.
+        embed_raster_images: Embed raster images in SVG. Default is True.
+        css_properties: CSS output method:
+            - "STYLEATTRIBUTES" (default): Inline style attributes
+            - "PRESENTATIONATTRIBUTES": Presentation attributes
+            - "STYLEELEMENTS": Style elements
+        font_subsetting: Font subsetting method:
+            - "GLYPHSUSED" (default): Only used glyphs
+            - "NONE": No subsetting
+            - "ALLGLYPHS": All glyphs
+
+    Returns:
+        dict: Contains 'success', 'filePath', 'fileExists', 'documentName', 'artboardIndex'
+
+    Example:
+        result = export_svg("/Users/me/Desktop/infographic.svg")
+    """
+    command = createCommand("exportSVG", {
+        "outputPath": output_path,
+        "artboardIndex": artboard_index,
+        "embedFonts": embed_fonts,
+        "embedRasterImages": embed_raster_images,
+        "cssProperties": css_properties,
+        "fontSubsetting": font_subsetting
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def export_pdf(
+    output_path: str,
+    preset: str = "[High Quality Print]",
+    preserve_editability: bool = True,
+    optimize_for_fast_web_view: bool = False,
+    view_after_saving: bool = False,
+    artboard_range: str = None
+):
+    """
+    Exports the active document as PDF.
+
+    Args:
+        output_path: Absolute path for the PDF file (e.g., "/path/to/export.pdf")
+        preset: PDF preset name. Default is "[High Quality Print]".
+                Common presets: "[Smallest File Size]", "[Press Quality]"
+        preserve_editability: Keep Illustrator editing capability. Default is True.
+        optimize_for_fast_web_view: Optimize for web viewing. Default is False.
+        view_after_saving: Open PDF after saving. Default is False.
+        artboard_range: Which artboards to export (e.g., "1-3" or "1,3,5").
+                       None exports all.
+
+    Returns:
+        dict: Contains 'success', 'filePath', 'fileExists', 'documentName', 'preset'
+
+    Example:
+        # High quality print PDF
+        result = export_pdf("/Users/me/Desktop/print.pdf")
+
+        # Small web PDF
+        result = export_pdf(
+            "/Users/me/Desktop/web.pdf",
+            preset="[Smallest File Size]",
+            optimize_for_fast_web_view=True
+        )
+    """
+    command = createCommand("exportPDF", {
+        "outputPath": output_path,
+        "preset": preset,
+        "preserveEditability": preserve_editability,
+        "optimizeForFastWebView": optimize_for_fast_web_view,
+        "viewAfterSaving": view_after_saving,
+        "artboardRange": artboard_range
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def export_jpeg(
+    output_path: str,
+    artboard_index: int = 0,
+    quality: int = 80,
+    horizontal_scale: int = 100,
+    vertical_scale: int = 100,
+    anti_aliasing: bool = True,
+    artboard_clipping: bool = True,
+    blur_amount: float = 0
+):
+    """
+    Exports the active document as JPEG.
+
+    Args:
+        output_path: Absolute path for the JPEG file (e.g., "/path/to/export.jpg")
+        artboard_index: Index of artboard to export (0-based). Default is 0.
+        quality: JPEG quality (0-100). Default is 80.
+        horizontal_scale: Horizontal scale percentage. Default is 100.
+        vertical_scale: Vertical scale percentage. Default is 100.
+        anti_aliasing: Enable anti-aliasing. Default is True.
+        artboard_clipping: Clip to artboard bounds. Default is True.
+        blur_amount: Blur amount (0-2). Default is 0.
+
+    Returns:
+        dict: Contains 'success', 'filePath', 'fileExists', 'documentName',
+              'quality', 'artboardIndex'
+
+    Example:
+        # Standard quality export
+        result = export_jpeg("/Users/me/Desktop/preview.jpg", quality=80)
+
+        # High-res export at 2x scale
+        result = export_jpeg(
+            "/Users/me/Desktop/highres.jpg",
+            quality=100,
+            horizontal_scale=200,
+            vertical_scale=200
+        )
+    """
+    command = createCommand("exportJPEG", {
+        "outputPath": output_path,
+        "artboardIndex": artboard_index,
+        "quality": quality,
+        "horizontalScale": horizontal_scale,
+        "verticalScale": vertical_scale,
+        "antiAliasing": anti_aliasing,
+        "artBoardClipping": artboard_clipping,
+        "blurAmount": blur_amount
+    })
+    return sendCommand(command)
+
 
 @mcp.resource("config://get_instructions")
 def get_instructions() -> str:
