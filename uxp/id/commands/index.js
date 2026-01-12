@@ -500,8 +500,30 @@ const setTableCell = async (command) => {
     const doc = app.activeDocument;
     const options = command.options || {};
 
-    const frame = doc.textFrames.itemByID(options.frameId);
-    const table = frame.tables.item(0);
+    // Find the table by ID by iterating through all text frames
+    let table = null;
+    const frameCount = doc.textFrames.length;
+    for (let i = 0; i < frameCount; i++) {
+        try {
+            const frame = doc.textFrames.item(i);
+            const tableCount = frame.tables.length;
+            for (let j = 0; j < tableCount; j++) {
+                const t = frame.tables.item(j);
+                if (t.id === options.tableId) {
+                    table = t;
+                    break;
+                }
+            }
+            if (table) break;
+        } catch (e) {
+            // Skip frames without tables
+        }
+    }
+
+    if (!table) {
+        throw new Error(`Table with ID ${options.tableId} not found`);
+    }
+
     const row = table.rows.item(options.row);
     const cell = row.cells.item(options.column);
     cell.contents = options.content;
@@ -514,9 +536,31 @@ const styleTableRow = async (command) => {
     const doc = app.activeDocument;
     const options = command.options || {};
 
-    const frame = doc.textFrames.itemByID(options.frameId);
-    const table = frame.tables.item(0);
-    const row = table.rows.item(options.row);
+    // Find the table by ID by iterating through all text frames
+    let table = null;
+    const frameCount = doc.textFrames.length;
+    for (let i = 0; i < frameCount; i++) {
+        try {
+            const frame = doc.textFrames.item(i);
+            const tableCount = frame.tables.length;
+            for (let j = 0; j < tableCount; j++) {
+                const t = frame.tables.item(j);
+                if (t.id === options.tableId) {
+                    table = t;
+                    break;
+                }
+            }
+            if (table) break;
+        } catch (e) {
+            // Skip frames without tables
+        }
+    }
+
+    if (!table) {
+        throw new Error(`Table with ID ${options.tableId} not found`);
+    }
+
+    const row = table.rows.item(options.rowIndex);
 
     if (options.fillColor) {
         const color = findOrCreateColor(doc, options.fillColor);
@@ -542,6 +586,23 @@ const styleTableRow = async (command) => {
 // EXPORT TOOLS
 // =============================================================================
 
+const { localFileSystem, types } = require('uxp').storage;
+
+// Helper to create a file entry from a full path
+const createFileEntry = async (filePath) => {
+    // Split path into folder and filename
+    const lastSlash = filePath.lastIndexOf('/');
+    const folderPath = filePath.substring(0, lastSlash);
+    const fileName = filePath.substring(lastSlash + 1);
+
+    // Get the parent folder
+    const folder = await localFileSystem.getEntryWithUrl("file:" + folderPath);
+
+    // Create the file in that folder
+    const file = await folder.createFile(fileName, { overwrite: true });
+    return file;
+};
+
 const exportPDF = async (command) => {
     console.log("[MCP] exportPDF called");
     const doc = app.activeDocument;
@@ -557,8 +618,8 @@ const exportPDF = async (command) => {
         app.pdfExportPreferences.pageRange = PageRange.ALL_PAGES;
     }
 
-    // Export
-    const outputFile = new File(options.outputPath);
+    // Create file entry using helper
+    const outputFile = await createFileEntry(options.outputPath);
     doc.exportFile(ExportFormat.PDF_TYPE, outputFile);
 
     return { success: true, outputPath: options.outputPath };
@@ -570,13 +631,35 @@ const exportJPEG = async (command) => {
     const options = command.options || {};
 
     const ExportFormat = indesign.ExportFormat;
+    const JPEGOptionsQuality = indesign.JPEGOptionsQuality;
+
+    // Map quality number to enum value
+    const qualityMap = {
+        "LOW": JPEGOptionsQuality.LOW,
+        "MEDIUM": JPEGOptionsQuality.MEDIUM,
+        "HIGH": JPEGOptionsQuality.HIGH,
+        "MAXIMUM": JPEGOptionsQuality.MAXIMUM
+    };
+
+    // Convert numeric quality (0-100) to enum, or use string directly
+    let jpegQuality = JPEGOptionsQuality.HIGH;  // default
+    if (typeof options.quality === "string") {
+        jpegQuality = qualityMap[options.quality.toUpperCase()] || JPEGOptionsQuality.HIGH;
+    } else if (typeof options.quality === "number") {
+        // Map 0-100 to LOW/MEDIUM/HIGH/MAXIMUM
+        if (options.quality <= 25) jpegQuality = JPEGOptionsQuality.LOW;
+        else if (options.quality <= 50) jpegQuality = JPEGOptionsQuality.MEDIUM;
+        else if (options.quality <= 75) jpegQuality = JPEGOptionsQuality.HIGH;
+        else jpegQuality = JPEGOptionsQuality.MAXIMUM;
+    }
 
     // Set JPEG export preferences
-    app.jpegExportPreferences.jpegQuality = options.quality || 80;
+    app.jpegExportPreferences.jpegQuality = jpegQuality;
     app.jpegExportPreferences.exportResolution = options.resolution || 300;
     app.jpegExportPreferences.pageString = String((options.pageIndex || 0) + 1);
 
-    const outputFile = new File(options.outputPath);
+    // Create file entry using helper
+    const outputFile = await createFileEntry(options.outputPath);
     doc.exportFile(ExportFormat.JPG, outputFile);
 
     return { success: true, outputPath: options.outputPath };
@@ -797,8 +880,8 @@ const saveDocument = async (command) => {
     let savedPath;
 
     if (options.filePath) {
-        // Save to specified path
-        const saveFile = new File(options.filePath);
+        // Save to specified path using helper
+        const saveFile = await createFileEntry(options.filePath);
         doc.save(saveFile);
         savedPath = options.filePath;
     } else {

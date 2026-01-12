@@ -250,6 +250,232 @@ class TestLiveTables:
 
 
 @pytest.mark.live
+class TestLiveImagePlacement:
+    """Live tests for image placement."""
+
+    def test_place_image(self):
+        """Test placing an image file into the document."""
+        # Use the test fixture image
+        test_image_path = os.path.join(
+            os.path.dirname(__file__), "fixtures", "test_image.png"
+        )
+
+        command = createCommand("placeImage", {
+            "filePath": test_image_path,
+            "x": 36,
+            "y": 160,
+            "width": 200,
+            "height": 100,
+            "pageIndex": 0,
+            "fitOption": "PROPORTIONALLY"
+        })
+        result = sendCommand(command)
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        frame_id = result.get("response", {}).get("frameId")
+        print(f"✓ Placed image with frame ID: {frame_id}")
+        return frame_id
+
+    def test_list_images(self):
+        """Test listing all placed images."""
+        command = createCommand("listImages", {"pageIndex": 0})
+        result = sendCommand(command)
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        images = result.get("response", {}).get("images", [])
+        print(f"✓ Images on page: {len(images)} found")
+
+
+@pytest.mark.live
+class TestLiveStyleApplication:
+    """Live tests for applying styles to content."""
+
+    def test_apply_paragraph_style(self):
+        """Test applying a paragraph style to a text frame."""
+        # First create a text frame
+        frame_cmd = createCommand("createTextFrame", {
+            "x": 250, "y": 160, "width": 300, "height": 80,
+            "content": "This text will have a style applied to it.",
+            "pageIndex": 0
+        })
+        frame_result = sendCommand(frame_cmd)
+        assert frame_result["status"] == "SUCCESS", f"Failed to create frame: {frame_result}"
+        frame_id = frame_result.get("response", {}).get("frameId")
+
+        # Apply the WP Body style (created in earlier test)
+        style_cmd = createCommand("applyParagraphStyle", {
+            "frameId": frame_id,
+            "styleName": "WP Body"
+        })
+        result = sendCommand(style_cmd)
+        assert result["status"] == "SUCCESS", f"Failed to apply style: {result}"
+        print(f"✓ Applied 'WP Body' style to frame {frame_id}")
+
+    def test_set_text_frame_content(self):
+        """Test updating text content in an existing frame."""
+        # Create a frame first
+        frame_cmd = createCommand("createTextFrame", {
+            "x": 250, "y": 250, "width": 300, "height": 40,
+            "content": "Original content",
+            "pageIndex": 0
+        })
+        frame_result = sendCommand(frame_cmd)
+        assert frame_result["status"] == "SUCCESS", f"Failed to create frame: {frame_result}"
+        frame_id = frame_result.get("response", {}).get("frameId")
+
+        # Update the content
+        update_cmd = createCommand("setTextFrameContent", {
+            "frameId": frame_id,
+            "content": "Updated content - Ultrathink Solutions"
+        })
+        result = sendCommand(update_cmd)
+        assert result["status"] == "SUCCESS", f"Failed to update content: {result}"
+        print(f"✓ Updated text content in frame {frame_id}")
+
+
+@pytest.mark.live
+class TestLiveTableOperations:
+    """Live tests for table cell operations."""
+
+    def test_set_table_cells(self):
+        """Test setting content in table cells."""
+        # Create a table first
+        table_cmd = createCommand("createTable", {
+            "x": 36, "y": 460,
+            "width": 540, "height": 120,
+            "rows": 3, "columns": 3,
+            "pageIndex": 0
+        })
+        table_result = sendCommand(table_cmd)
+        assert table_result["status"] == "SUCCESS", f"Failed to create table: {table_result}"
+        table_id = table_result.get("response", {}).get("tableId")
+
+        # Set header cells
+        headers = ["Feature", "Standard", "Premium"]
+        for col, header in enumerate(headers):
+            cell_cmd = createCommand("setTableCell", {
+                "tableId": table_id,
+                "row": 0,
+                "column": col,
+                "content": header
+            })
+            result = sendCommand(cell_cmd)
+            assert result["status"] == "SUCCESS", f"Failed to set cell [0,{col}]: {result}"
+
+        # Set data cells
+        data = [
+            ["API Access", "Limited", "Unlimited"],
+            ["Support", "Email", "24/7 Phone"]
+        ]
+        for row_idx, row_data in enumerate(data):
+            for col_idx, value in enumerate(row_data):
+                cell_cmd = createCommand("setTableCell", {
+                    "tableId": table_id,
+                    "row": row_idx + 1,
+                    "column": col_idx,
+                    "content": value
+                })
+                result = sendCommand(cell_cmd)
+                assert result["status"] == "SUCCESS", f"Failed to set cell [{row_idx+1},{col_idx}]: {result}"
+
+        print(f"✓ Populated table {table_id} with 9 cells")
+
+    def test_style_table_row(self):
+        """Test styling a table row."""
+        # Create another table for styling test
+        table_cmd = createCommand("createTable", {
+            "x": 36, "y": 600,
+            "width": 540, "height": 80,
+            "rows": 2, "columns": 3,
+            "pageIndex": 0
+        })
+        table_result = sendCommand(table_cmd)
+        assert table_result["status"] == "SUCCESS", f"Failed to create table: {table_result}"
+        table_id = table_result.get("response", {}).get("tableId")
+
+        # Style the header row with brand colors
+        style_cmd = createCommand("styleTableRow", {
+            "tableId": table_id,
+            "rowIndex": 0,
+            "fillColor": "#0D1B2A",  # Synaptic Blue
+            "textColor": "#F5F5F5"   # Axon White
+        })
+        result = sendCommand(style_cmd)
+        assert result["status"] == "SUCCESS", f"Failed to style row: {result}"
+        print(f"✓ Styled header row of table {table_id} with brand colors")
+
+
+@pytest.mark.live
+class TestLiveExport:
+    """Live tests for document export."""
+
+    def test_export_pdf(self):
+        """Test exporting document to PDF."""
+        # Use user's home directory for better UXP compatibility
+        home = os.path.expanduser("~")
+        output_path = f"{home}/Desktop/ultrathink_test_whitepaper.pdf"
+
+        command = createCommand("exportPDF", {
+            "outputPath": output_path,
+            "preset": "HIGH_QUALITY_PRINT",
+            "pageRange": "ALL"
+        })
+        result = sendCommand(command)
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        print(f"✓ Exported PDF to: {output_path}")
+
+        # Verify file was created
+        assert os.path.exists(output_path), f"PDF file not found at {output_path}"
+        file_size = os.path.getsize(output_path)
+        print(f"✓ PDF file size: {file_size:,} bytes")
+
+        # Clean up
+        os.remove(output_path)
+
+    def test_export_jpeg(self):
+        """Test exporting a page as JPEG."""
+        home = os.path.expanduser("~")
+        output_path = f"{home}/Desktop/ultrathink_test_page1.jpg"
+
+        command = createCommand("exportJPEG", {
+            "outputPath": output_path,
+            "pageIndex": 0,
+            "quality": 80,
+            "resolution": 150
+        })
+        result = sendCommand(command)
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        print(f"✓ Exported JPEG to: {output_path}")
+
+        # Verify file was created
+        assert os.path.exists(output_path), f"JPEG file not found at {output_path}"
+        file_size = os.path.getsize(output_path)
+        print(f"✓ JPEG file size: {file_size:,} bytes")
+
+        # Clean up
+        os.remove(output_path)
+
+
+@pytest.mark.live
+class TestLiveSaveDocument:
+    """Live tests for saving documents."""
+
+    def test_save_document(self):
+        """Test saving the InDesign document."""
+        home = os.path.expanduser("~")
+        output_path = f"{home}/Desktop/ultrathink_test_document.indd"
+
+        command = createCommand("saveDocument", {
+            "filePath": output_path
+        })
+        result = sendCommand(command)
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        print(f"✓ Saved document to: {output_path}")
+
+        # Clean up
+        if os.path.exists(output_path):
+            os.remove(output_path)
+
+
+@pytest.mark.live
 class TestLiveAdvancedLayout:
     """Live tests for advanced layout tools."""
 
@@ -335,9 +561,14 @@ def run_all_live_tests():
         ("Paragraph Styles", TestLiveStyles()),
         ("Rectangles", TestLiveRectangles()),
         ("Text Frames", TestLiveTextFrames()),
+        ("Image Placement", TestLiveImagePlacement()),
+        ("Style Application", TestLiveStyleApplication()),
         ("Page Management", TestLivePageManagement()),
         ("Tables", TestLiveTables()),
+        ("Table Operations", TestLiveTableOperations()),
         ("Advanced Layout", TestLiveAdvancedLayout()),
+        ("Save Document", TestLiveSaveDocument()),
+        ("Export", TestLiveExport()),
     ]
 
     passed = 0
