@@ -591,6 +591,19 @@ def run_all_live_tests():
     print(f"RESULTS: {passed} passed, {failed} failed")
     print("=" * 60)
 
+    # Teardown: Close the test document without saving
+    print("\n--- Teardown ---")
+    try:
+        close_cmd = createCommand("closeDocument", {"save": False})
+        result = sendCommand(close_cmd)
+        if result["status"] == "SUCCESS":
+            doc_name = result.get("response", {}).get("documentName", "unknown")
+            print(f"✓ Closed test document: {doc_name}")
+        else:
+            print(f"✗ Failed to close document: {result}")
+    except Exception as e:
+        print(f"✗ Error during teardown: {e}")
+
     return failed == 0
 
 

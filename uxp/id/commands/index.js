@@ -893,6 +893,23 @@ const saveDocument = async (command) => {
     return { success: true, filePath: savedPath };
 };
 
+const closeDocument = async (command) => {
+    console.log("[MCP] closeDocument called");
+    const doc = app.activeDocument;
+    const options = command.options || {};
+    const docName = doc.name;
+
+    const SaveOptions = indesign.SaveOptions;
+
+    if (options.save) {
+        doc.close(SaveOptions.YES);
+    } else {
+        doc.close(SaveOptions.NO);
+    }
+
+    return { success: true, documentName: docName };
+};
+
 // =============================================================================
 // COMMAND ROUTING
 // =============================================================================
@@ -902,6 +919,7 @@ const commandHandlers = {
     createDocument,
     getDocumentInfo,
     getPageCount,
+    closeDocument,
 
     // Text frames
     createTextFrame,

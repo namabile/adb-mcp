@@ -794,6 +794,26 @@ def save_document(
     return sendCommand(command)
 
 
+@mcp.tool()
+def close_document(
+    save: bool = False
+):
+    """
+    Closes the active InDesign document.
+
+    Args:
+        save: If True, saves the document before closing. If False, closes without saving
+              (discarding any unsaved changes). Defaults to False.
+
+    Returns:
+        dict: Contains 'success' status and 'documentName' of the closed document
+    """
+    command = createCommand("closeDocument", {
+        "save": save
+    })
+    return sendCommand(command)
+
+
 @mcp.resource("config://get_instructions")
 def get_instructions() -> str:
     """Read this first! Returns information and instructions on how to use Photoshop and this API"""
