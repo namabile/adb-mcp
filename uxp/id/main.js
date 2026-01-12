@@ -62,21 +62,12 @@ const onCommandPacket = async (packet) => {
 };
 
 function connectToServer() {
-    // Create new Socket.IO connection
-    const isWindows = require("os").platform() === "win32";
-
-    const socketOptions = isWindows
-        ? {
-              transports: ["polling"],
-              upgrade: false,
-              rememberUpgrade: false,
-          }
-        : {
-              transports: ["websocket"],
-          };
-    console.log(isWindows);
-    console.log(socketOptions);
-    socket = io(PROXY_URL, socketOptions);
+    // Create new Socket.IO connection (simplified to match Photoshop's approach)
+    console.log("[MCP] Connecting to proxy server:", PROXY_URL);
+    socket = io(PROXY_URL, {
+        transports: ["websocket"],
+    });
+    console.log("[MCP] Socket created, waiting for connection...");
 
     socket.on("connect", () => {
         updateButton();
