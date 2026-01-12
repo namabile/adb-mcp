@@ -68,14 +68,14 @@ class TestLiveDocumentCreation:
         })
 
         result = sendCommand(command)
-        assert result["status"] == "success", f"Failed: {result}"
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
         print(f"✓ Created document: {result}")
 
     def test_get_document_info(self):
         """Test getting document info."""
         command = createCommand("getDocumentInfo", {})
         result = sendCommand(command)
-        assert result["status"] == "success", f"Failed: {result}"
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
         print(f"✓ Document info: {result}")
 
 
@@ -101,15 +101,15 @@ class TestLiveColorSwatches:
                 "colorSpace": "RGB"
             })
             result = sendCommand(command)
-            assert result["status"] == "success", f"Failed to create {name}: {result}"
+            assert result["status"] == "SUCCESS", f"Failed to create {name}: {result}"
             print(f"✓ Created swatch: {name}")
 
     def test_list_swatches(self):
         """Test listing all swatches."""
         command = createCommand("listSwatches", {})
         result = sendCommand(command)
-        assert result["status"] == "success", f"Failed: {result}"
-        print(f"✓ Swatches: {result.get('data', {}).get('swatches', [])}")
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        print(f"✓ Swatches: {result.get('response', {}).get('swatches', [])}")
 
 
 @pytest.mark.live
@@ -127,8 +127,8 @@ class TestLiveTextFrames:
             "pageIndex": 0
         })
         result = sendCommand(command)
-        assert result["status"] == "success", f"Failed: {result}"
-        frame_id = result.get("data", {}).get("frameId")
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        frame_id = result.get("response", {}).get("frameId")
         print(f"✓ Created text frame with ID: {frame_id}")
         return frame_id
 
@@ -136,8 +136,8 @@ class TestLiveTextFrames:
         """Test listing all text frames."""
         command = createCommand("listTextFrames", {"pageIndex": None})
         result = sendCommand(command)
-        assert result["status"] == "success", f"Failed: {result}"
-        print(f"✓ Text frames: {result.get('data', {}).get('textFrames', [])}")
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        print(f"✓ Text frames: {result.get('response', {}).get('textFrames', [])}")
 
 
 @pytest.mark.live
@@ -171,17 +171,17 @@ class TestLiveStyles:
         for style in styles:
             command = createCommand("createParagraphStyle", style)
             result = sendCommand(command)
-            assert result["status"] == "success", f"Failed to create style {style['name']}: {result}"
+            assert result["status"] == "SUCCESS", f"Failed to create style {style['name']}: {result}"
             print(f"✓ Created paragraph style: {style['name']}")
 
     def test_list_styles(self):
         """Test listing all styles."""
         command = createCommand("listStyles", {})
         result = sendCommand(command)
-        assert result["status"] == "success", f"Failed: {result}"
-        data = result.get("data", {})
-        print(f"✓ Paragraph styles: {[s['name'] for s in data.get('paragraphStyles', [])]}")
-        print(f"✓ Character styles: {[s['name'] for s in data.get('characterStyles', [])]}")
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        data = result.get("response", {})
+        print(f"✓ Paragraph styles: {data.get('paragraphStyles', [])}")
+        print(f"✓ Character styles: {data.get('characterStyles', [])}")
 
 
 @pytest.mark.live
@@ -201,8 +201,8 @@ class TestLiveRectangles:
             "pageIndex": 0
         })
         result = sendCommand(command)
-        assert result["status"] == "success", f"Failed: {result}"
-        print(f"✓ Created header rectangle: {result.get('data', {}).get('frameId')}")
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        print(f"✓ Created header rectangle: {result.get('response', {}).get('frameId')}")
 
 
 @pytest.mark.live
@@ -213,8 +213,8 @@ class TestLivePageManagement:
         """Test getting page count."""
         command = createCommand("getPageCount", {})
         result = sendCommand(command)
-        assert result["status"] == "success", f"Failed: {result}"
-        print(f"✓ Page count: {result.get('data', {}).get('pageCount')}")
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        print(f"✓ Page count: {result.get('response', {}).get('pageCount')}")
 
     def test_add_page(self):
         """Test adding a new page."""
@@ -223,8 +223,8 @@ class TestLivePageManagement:
             "basedOnMaster": None
         })
         result = sendCommand(command)
-        assert result["status"] == "success", f"Failed: {result}"
-        print(f"✓ Added page at index: {result.get('data', {}).get('pageIndex')}")
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        print(f"✓ Added page at index: {result.get('response', {}).get('pageIndex')}")
 
 
 @pytest.mark.live
@@ -243,8 +243,8 @@ class TestLiveTables:
             "pageIndex": 0
         })
         result = sendCommand(command)
-        assert result["status"] == "success", f"Failed: {result}"
-        frame_id = result.get("data", {}).get("frameId")
+        assert result["status"] == "SUCCESS", f"Failed: {result}"
+        frame_id = result.get("response", {}).get("frameId")
         print(f"✓ Created table in frame: {frame_id}")
         return frame_id
 
