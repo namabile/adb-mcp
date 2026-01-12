@@ -385,5 +385,88 @@ class TestInspectionTools:
         assert command["options"]["pageIndex"] == 0
 
 
+class TestObjectManipulationTools:
+    """Test object manipulation tool command generation."""
+
+    def test_delete_object_command(self):
+        """Test delete_object command."""
+        from core import createCommand, init
+
+        mock_client = MagicMock()
+        init("indesign", mock_client)
+
+        command = createCommand("deleteObject", {
+            "frameId": 12345
+        })
+
+        assert command["action"] == "deleteObject"
+        assert command["options"]["frameId"] == 12345
+
+    def test_set_corner_radius_command(self):
+        """Test set_corner_radius command with default corner option."""
+        from core import createCommand, init
+
+        mock_client = MagicMock()
+        init("indesign", mock_client)
+
+        command = createCommand("setCornerRadius", {
+            "frameId": 12345,
+            "radius": 10,
+            "cornerOption": "ROUNDED_CORNER"
+        })
+
+        assert command["action"] == "setCornerRadius"
+        assert command["options"]["frameId"] == 12345
+        assert command["options"]["radius"] == 10
+        assert command["options"]["cornerOption"] == "ROUNDED_CORNER"
+
+    def test_set_corner_radius_inset(self):
+        """Test set_corner_radius with inset corner option."""
+        from core import createCommand, init
+
+        mock_client = MagicMock()
+        init("indesign", mock_client)
+
+        command = createCommand("setCornerRadius", {
+            "frameId": 99999,
+            "radius": 20,
+            "cornerOption": "INSET_CORNER"
+        })
+
+        assert command["options"]["cornerOption"] == "INSET_CORNER"
+        assert command["options"]["radius"] == 20
+
+    def test_set_text_alignment_command(self):
+        """Test set_text_alignment command."""
+        from core import createCommand, init
+
+        mock_client = MagicMock()
+        init("indesign", mock_client)
+
+        command = createCommand("setTextAlignment", {
+            "frameId": 12345,
+            "alignment": "CENTER_ALIGN"
+        })
+
+        assert command["action"] == "setTextAlignment"
+        assert command["options"]["frameId"] == 12345
+        assert command["options"]["alignment"] == "CENTER_ALIGN"
+
+    def test_set_text_alignment_justify(self):
+        """Test set_text_alignment with justify options."""
+        from core import createCommand, init
+
+        mock_client = MagicMock()
+        init("indesign", mock_client)
+
+        alignments = ["LEFT_ALIGN", "RIGHT_ALIGN", "JUSTIFY_ALIGN", "JUSTIFY_LEFT", "JUSTIFY_CENTER", "JUSTIFY_RIGHT"]
+        for alignment in alignments:
+            command = createCommand("setTextAlignment", {
+                "frameId": 12345,
+                "alignment": alignment
+            })
+            assert command["options"]["alignment"] == alignment
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

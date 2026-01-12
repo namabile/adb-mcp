@@ -814,6 +814,78 @@ def close_document(
     return sendCommand(command)
 
 
+# =============================================================================
+# OBJECT MANIPULATION TOOLS
+# =============================================================================
+
+@mcp.tool()
+def delete_object(frame_id: int):
+    """
+    Deletes an object (text frame, rectangle, image frame, etc.) from the document.
+
+    Args:
+        frame_id (int): The ID of the object to delete. This can be a text frame,
+            rectangle, or any other page item.
+
+    Returns:
+        dict: Contains 'success' status and 'objectType' of the deleted object
+    """
+    command = createCommand("deleteObject", {
+        "frameId": frame_id
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def set_corner_radius(
+    frame_id: int,
+    radius: float,
+    corner_option: str = "ROUNDED_CORNER"
+):
+    """
+    Sets the corner radius on a rectangle or frame.
+
+    Args:
+        frame_id (int): The ID of the rectangle or frame to modify
+        radius (float): Corner radius in points (e.g., 10 for 10pt rounded corners)
+        corner_option (str, optional): Corner style - "ROUNDED_CORNER", "INVERSE_ROUNDED_CORNER",
+            "INSET_CORNER", "BEVEL_CORNER", "FANCY_CORNER", "NONE". Defaults to "ROUNDED_CORNER".
+
+    Returns:
+        dict: Contains 'success' status
+    """
+    command = createCommand("setCornerRadius", {
+        "frameId": frame_id,
+        "radius": radius,
+        "cornerOption": corner_option
+    })
+    return sendCommand(command)
+
+
+@mcp.tool()
+def set_text_alignment(
+    frame_id: int,
+    alignment: str
+):
+    """
+    Sets the text alignment (justification) for all paragraphs in a text frame.
+
+    Args:
+        frame_id (int): The ID of the text frame to modify
+        alignment (str): Text alignment - "LEFT_ALIGN", "CENTER_ALIGN", "RIGHT_ALIGN",
+            "JUSTIFY_ALIGN" (fully justified), "JUSTIFY_LEFT" (justify with last line left),
+            "JUSTIFY_CENTER" (justify with last line centered), "JUSTIFY_RIGHT" (justify with last line right)
+
+    Returns:
+        dict: Contains 'success' status
+    """
+    command = createCommand("setTextAlignment", {
+        "frameId": frame_id,
+        "alignment": alignment
+    })
+    return sendCommand(command)
+
+
 @mcp.resource("config://get_instructions")
 def get_instructions() -> str:
     """Read this first! Returns information and instructions on how to use Photoshop and this API"""

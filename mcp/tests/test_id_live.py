@@ -476,6 +476,160 @@ class TestLiveSaveDocument:
 
 
 @pytest.mark.live
+class TestLiveObjectManipulation:
+    """Live tests for object manipulation tools."""
+
+    def test_delete_object(self):
+        """Test deleting an object from the document."""
+        # Create a rectangle to delete
+        create_cmd = createCommand("createRectangle", {
+            "x": 400, "y": 50, "width": 100, "height": 100,
+            "fillColor": "#FF0000",
+            "pageIndex": 0
+        })
+        create_result = sendCommand(create_cmd)
+        assert create_result["status"] == "SUCCESS", f"Failed to create rectangle: {create_result}"
+        frame_id = create_result.get("response", {}).get("frameId")
+        print(f"✓ Created rectangle with ID: {frame_id}")
+
+        # Delete the rectangle
+        delete_cmd = createCommand("deleteObject", {
+            "frameId": frame_id
+        })
+        result = sendCommand(delete_cmd)
+        assert result["status"] == "SUCCESS", f"Failed to delete object: {result}"
+        object_type = result.get("response", {}).get("objectType")
+        print(f"✓ Deleted {object_type} with ID: {frame_id}")
+
+    def test_delete_text_frame(self):
+        """Test deleting a text frame."""
+        # Create a text frame to delete
+        create_cmd = createCommand("createTextFrame", {
+            "x": 400, "y": 160, "width": 150, "height": 50,
+            "content": "Text to be deleted",
+            "pageIndex": 0
+        })
+        create_result = sendCommand(create_cmd)
+        assert create_result["status"] == "SUCCESS", f"Failed to create text frame: {create_result}"
+        frame_id = create_result.get("response", {}).get("frameId")
+
+        # Delete the text frame
+        delete_cmd = createCommand("deleteObject", {
+            "frameId": frame_id
+        })
+        result = sendCommand(delete_cmd)
+        assert result["status"] == "SUCCESS", f"Failed to delete text frame: {result}"
+        print(f"✓ Deleted text frame with ID: {frame_id}")
+
+    def test_set_corner_radius(self):
+        """Test setting corner radius on a rectangle."""
+        # Create a rectangle
+        create_cmd = createCommand("createRectangle", {
+            "x": 400, "y": 220, "width": 120, "height": 80,
+            "fillColor": "#FFB703",
+            "pageIndex": 0
+        })
+        create_result = sendCommand(create_cmd)
+        assert create_result["status"] == "SUCCESS", f"Failed to create rectangle: {create_result}"
+        frame_id = create_result.get("response", {}).get("frameId")
+
+        # Set corner radius
+        radius_cmd = createCommand("setCornerRadius", {
+            "frameId": frame_id,
+            "radius": 15,
+            "cornerOption": "ROUNDED_CORNER"
+        })
+        result = sendCommand(radius_cmd)
+        assert result["status"] == "SUCCESS", f"Failed to set corner radius: {result}"
+        print(f"✓ Set 15pt rounded corners on rectangle {frame_id}")
+
+    def test_set_corner_radius_inset(self):
+        """Test setting inset corner style."""
+        # Create another rectangle with inset corners
+        create_cmd = createCommand("createRectangle", {
+            "x": 400, "y": 310, "width": 120, "height": 80,
+            "fillColor": "#0D1B2A",
+            "pageIndex": 0
+        })
+        create_result = sendCommand(create_cmd)
+        assert create_result["status"] == "SUCCESS", f"Failed to create rectangle: {create_result}"
+        frame_id = create_result.get("response", {}).get("frameId")
+
+        # Set inset corner style
+        radius_cmd = createCommand("setCornerRadius", {
+            "frameId": frame_id,
+            "radius": 20,
+            "cornerOption": "INSET_CORNER"
+        })
+        result = sendCommand(radius_cmd)
+        assert result["status"] == "SUCCESS", f"Failed to set inset corners: {result}"
+        print(f"✓ Set 20pt inset corners on rectangle {frame_id}")
+
+    def test_set_text_alignment_center(self):
+        """Test centering text in a text frame."""
+        # Create a text frame
+        create_cmd = createCommand("createTextFrame", {
+            "x": 36, "y": 720, "width": 250, "height": 60,
+            "content": "This text will be centered alignment test.",
+            "pageIndex": 0
+        })
+        create_result = sendCommand(create_cmd)
+        assert create_result["status"] == "SUCCESS", f"Failed to create text frame: {create_result}"
+        frame_id = create_result.get("response", {}).get("frameId")
+
+        # Set center alignment
+        align_cmd = createCommand("setTextAlignment", {
+            "frameId": frame_id,
+            "alignment": "CENTER_ALIGN"
+        })
+        result = sendCommand(align_cmd)
+        assert result["status"] == "SUCCESS", f"Failed to set alignment: {result}"
+        print(f"✓ Set CENTER_ALIGN on text frame {frame_id}")
+
+    def test_set_text_alignment_right(self):
+        """Test right-aligning text in a text frame."""
+        # Create a text frame
+        create_cmd = createCommand("createTextFrame", {
+            "x": 320, "y": 720, "width": 250, "height": 60,
+            "content": "This text will be right aligned.",
+            "pageIndex": 0
+        })
+        create_result = sendCommand(create_cmd)
+        assert create_result["status"] == "SUCCESS", f"Failed to create text frame: {create_result}"
+        frame_id = create_result.get("response", {}).get("frameId")
+
+        # Set right alignment
+        align_cmd = createCommand("setTextAlignment", {
+            "frameId": frame_id,
+            "alignment": "RIGHT_ALIGN"
+        })
+        result = sendCommand(align_cmd)
+        assert result["status"] == "SUCCESS", f"Failed to set alignment: {result}"
+        print(f"✓ Set RIGHT_ALIGN on text frame {frame_id}")
+
+    def test_set_text_alignment_justify(self):
+        """Test justified text alignment."""
+        # Create a text frame with more content for justify to be visible
+        create_cmd = createCommand("createTextFrame", {
+            "x": 36, "y": 785, "width": 534, "height": 50,
+            "content": "This is justified text that spans multiple words to demonstrate how justify alignment works in InDesign documents.",
+            "pageIndex": 0
+        })
+        create_result = sendCommand(create_cmd)
+        assert create_result["status"] == "SUCCESS", f"Failed to create text frame: {create_result}"
+        frame_id = create_result.get("response", {}).get("frameId")
+
+        # Set justify alignment
+        align_cmd = createCommand("setTextAlignment", {
+            "frameId": frame_id,
+            "alignment": "JUSTIFY_ALIGN"
+        })
+        result = sendCommand(align_cmd)
+        assert result["status"] == "SUCCESS", f"Failed to set alignment: {result}"
+        print(f"✓ Set JUSTIFY_ALIGN on text frame {frame_id}")
+
+
+@pytest.mark.live
 class TestLiveAdvancedLayout:
     """Live tests for advanced layout tools."""
 
@@ -566,6 +720,7 @@ def run_all_live_tests():
         ("Page Management", TestLivePageManagement()),
         ("Tables", TestLiveTables()),
         ("Table Operations", TestLiveTableOperations()),
+        ("Object Manipulation", TestLiveObjectManipulation()),
         ("Advanced Layout", TestLiveAdvancedLayout()),
         ("Save Document", TestLiveSaveDocument()),
         ("Export", TestLiveExport()),

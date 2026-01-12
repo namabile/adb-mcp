@@ -911,6 +911,140 @@ const closeDocument = async (command) => {
 };
 
 // =============================================================================
+// OBJECT MANIPULATION TOOLS
+// =============================================================================
+
+const deleteObject = async (command) => {
+    console.log("[MCP] deleteObject called");
+    const doc = app.activeDocument;
+    const options = command.options || {};
+    const frameId = options.frameId;
+
+    // Try to find and delete the object from different collections
+    // InDesign stores different object types in different collections
+    const collections = [
+        { name: 'textFrames', type: 'TextFrame' },
+        { name: 'rectangles', type: 'Rectangle' },
+        { name: 'ovals', type: 'Oval' },
+        { name: 'polygons', type: 'Polygon' },
+        { name: 'graphicLines', type: 'GraphicLine' }
+    ];
+
+    for (const collection of collections) {
+        try {
+            const item = doc[collection.name].itemByID(frameId);
+            // Test if the item exists by accessing a property
+            const id = item.id;
+            item.remove();
+            return { success: true, objectType: collection.type };
+        } catch (e) {
+            // Item not found in this collection, try next
+        }
+    }
+
+    // If we get here, try page items as a fallback
+    try {
+        const pageCount = doc.pages.length;
+        for (let p = 0; p < pageCount; p++) {
+            const page = doc.pages.item(p);
+            const itemCount = page.pageItems.length;
+            for (let i = 0; i < itemCount; i++) {
+                const item = page.pageItems.item(i);
+                if (item.id === frameId) {
+                    const itemType = item.constructor.name;
+                    item.remove();
+                    return { success: true, objectType: itemType };
+                }
+            }
+        }
+    } catch (e) {
+        // Fallback failed
+    }
+
+    throw new Error(`Object with ID ${frameId} not found`);
+};
+
+const setCornerRadius = async (command) => {
+    console.log("[MCP] setCornerRadius called");
+    const doc = app.activeDocument;
+    const options = command.options || {};
+    const frameId = options.frameId;
+    const radius = options.radius;
+    const cornerOptionStr = options.cornerOption || "ROUNDED_CORNER";
+
+    const CornerOptions = indesign.CornerOptions;
+
+    // Map corner option string to InDesign constant
+    const cornerOptionMap = {
+        "ROUNDED_CORNER": CornerOptions.ROUNDED_CORNER,
+        "INVERSE_ROUNDED_CORNER": CornerOptions.INVERSE_ROUNDED_CORNER,
+        "INSET_CORNER": CornerOptions.INSET_CORNER,
+        "BEVEL_CORNER": CornerOptions.BEVEL_CORNER,
+        "FANCY_CORNER": CornerOptions.FANCY_CORNER,
+        "NONE": CornerOptions.NONE
+    };
+
+    const cornerOption = cornerOptionMap[cornerOptionStr] || CornerOptions.ROUNDED_CORNER;
+
+    // Try to find the frame in rectangles first, then other collections
+    let frame;
+    try {
+        frame = doc.rectangles.itemByID(frameId);
+        const id = frame.id; // Test existence
+    } catch (e) {
+        try {
+            frame = doc.textFrames.itemByID(frameId);
+            const id = frame.id;
+        } catch (e2) {
+            try {
+                frame = doc.ovals.itemByID(frameId);
+                const id = frame.id;
+            } catch (e3) {
+                throw new Error(`Frame with ID ${frameId} not found`);
+            }
+        }
+    }
+
+    // Set corner options - InDesign uses an array for all 4 corners
+    // [topLeft, topRight, bottomLeft, bottomRight]
+    frame.cornerOption = [cornerOption, cornerOption, cornerOption, cornerOption];
+    frame.cornerRadius = [radius, radius, radius, radius];
+
+    return { success: true };
+};
+
+const setTextAlignment = async (command) => {
+    console.log("[MCP] setTextAlignment called");
+    const doc = app.activeDocument;
+    const options = command.options || {};
+    const frameId = options.frameId;
+    const alignmentStr = options.alignment;
+
+    // Map alignment string to InDesign Justification constant
+    const alignmentMap = {
+        "LEFT_ALIGN": Justification.LEFT_ALIGN,
+        "CENTER_ALIGN": Justification.CENTER_ALIGN,
+        "RIGHT_ALIGN": Justification.RIGHT_ALIGN,
+        "JUSTIFY_ALIGN": Justification.FULLY_JUSTIFIED,
+        "JUSTIFY_LEFT": Justification.LEFT_JUSTIFIED,
+        "JUSTIFY_CENTER": Justification.CENTER_JUSTIFIED,
+        "JUSTIFY_RIGHT": Justification.RIGHT_JUSTIFIED
+    };
+
+    const alignment = alignmentMap[alignmentStr];
+    if (!alignment) {
+        throw new Error(`Invalid alignment: ${alignmentStr}. Valid options: LEFT_ALIGN, CENTER_ALIGN, RIGHT_ALIGN, JUSTIFY_ALIGN, JUSTIFY_LEFT, JUSTIFY_CENTER, JUSTIFY_RIGHT`);
+    }
+
+    const frame = doc.textFrames.itemByID(frameId);
+
+    // Apply to all paragraphs in the frame
+    frame.paragraphs.everyItem().justification = alignment;
+
+    return { success: true };
+};
+
+// =============================================================================
 // COMMAND ROUTING
 // =============================================================================
 
@@ -962,7 +1096,12 @@ const commandHandlers = {
     createMasterPage,
     linkTextFrames,
     setTextWrap,
-    saveDocument
+    saveDocument,
+
+    // Object manipulation
+    deleteObject,
+    setCornerRadius,
+    setTextAlignment
 };
 
 console.log("[MCP] Registered handlers:", Object.keys(commandHandlers).join(", "));
